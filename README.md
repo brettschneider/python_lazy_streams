@@ -103,6 +103,12 @@ the last item in the resulting list. Returns a _value_.
     'Matilda'
     >>>
 
+__size()__ - Returns the number of items in the Streams's resulting list.
+
+    >>> print stream([5, 6, 7]).size()
+    3
+    >>>
+
 
 Non-terminal operations
 -----------------------
