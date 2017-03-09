@@ -27,6 +27,9 @@ __version__ = '0.1'
 __license__ = 'MIT'
 
 
+from promise_keeper import PromiseKeeper
+
+
 class NoStreamItemError(LookupError):
     """Indicates that the requested item does not exist."""
 
@@ -38,7 +41,7 @@ class LazyStream(object):
         """The resulting number of items in the stream.  Returns an int."""
         return 0
 
-    def _calc_item(self, index): # pylint: disable=unused-argument,no-self-use
+    def _materialize_item(self, index): # pylint: disable=unused-argument,no-self-use
         raise NoStreamItemError()
 
     def to_list(self):
@@ -47,7 +50,7 @@ class LazyStream(object):
         index = 0
         while True:
             try:
-                result.append(self._calc_item(index))
+                result.append(self._materialize_item(index))
                 index += 1
             except NoStreamItemError:
                 break
@@ -86,7 +89,7 @@ class LazyStream(object):
         result = []
         for index in range(num_items):
             try:
-                result.append(self._calc_item(index))
+                result.append(self._materialize_item(index))
             except NoStreamItemError:
                 break
         return _LazyListStream(result)
@@ -97,7 +100,7 @@ class LazyStream(object):
         returns [or_else].
         """
         try:
-            return self._calc_item(0)
+            return self._materialize_item(0)
         except NoStreamItemError:
             return or_else
 
@@ -107,7 +110,7 @@ class LazyStream(object):
         returns [or_else].
         """
         try:
-            return self.reverse()._calc_item(0) # pylint: disable=protected-access
+            return self.reverse()._materialize_item(0) # pylint: disable=protected-access
         except NoStreamItemError:
             return or_else
 
@@ -118,7 +121,7 @@ class LazyStream(object):
         index = 0
         while True:
             try:
-                item = self._calc_item(index)
+                item = self._materialize_item(index)
                 func(item)
                 index += 1
             except NoStreamItemError:
@@ -178,7 +181,7 @@ class _LazyListStream(LazyStream):
             raise ValueError('Argument must be a list or tuple')
         self._lst = lst
 
-    def _calc_item(self, index):
+    def _materialize_item(self, index):
         if index < 0:
             raise NoStreamItemError()
         try:
@@ -200,8 +203,8 @@ class _LazyMapStream(LazyStream):
     def size(self):
         return self._parent.size()
 
-    def _calc_item(self, index):
-        return self._func(self._parent._calc_item(index)) # pylint: disable=protected-access
+    def _materialize_item(self, index):
+        return self._func(self._parent._materialize_item(index)) # pylint: disable=protected-access
 
 
 class _LazyFilterStream(LazyStream):
@@ -220,11 +223,11 @@ class _LazyFilterStream(LazyStream):
             self._size = len(self.to_list())
         return self._size
 
-    def _calc_item(self, index):
+    def _materialize_item(self, index):
         if index in self._cache.keys():
             return self._cache[index]
         while self._parent_index < self._parent.size():
-            item = self._parent._calc_item(self._parent_index) # pylint: disable=protected-access
+            item = self._parent._materialize_item(self._parent_index) # pylint: disable=protected-access
             self._parent_index += 1
             if self._func(item):
                 self._filter_index = index
@@ -245,8 +248,8 @@ class _LazyReverseStream(LazyStream):
     def size(self):
         return self._parent.size()
 
-    def _calc_item(self, index):
-        return self._parent._calc_item(self.size() - index - 1) # pylint: disable=protected-access
+    def _materialize_item(self, index):
+        return self._parent._materialize_item(self.size() - index - 1) # pylint: disable=protected-access
 
 
 class _LazyFlattenStream(LazyStream):
@@ -261,7 +264,7 @@ class _LazyFlattenStream(LazyStream):
     def size(self):
         return len(self._calc_flattened_list())
 
-    def _calc_item(self, index):
+    def _materialize_item(self, index):
         try:
             return self._calc_flattened_list()[index]
         except IndexError:
