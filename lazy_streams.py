@@ -34,20 +34,12 @@ class NoStreamItemError(LookupError):
 class LazyStream(object):
     """A lazy evaluated stream"""
 
-    def __init__(self, lst):
-        self._lst = lst
-
-    def size(self):
+    def size(self): # pylint: disable=no-self-use
         """The resulting number of items in the stream.  Returns an int."""
-        return len(self._lst)
+        return 0
 
-    def _calc_item(self, index):
-        if index < 0:
-            raise NoStreamItemError()
-        try:
-            return self._lst[index]
-        except:
-            raise NoStreamItemError()
+    def _calc_item(self, index): # pylint: disable=unused-argument,no-self-use
+        raise NoStreamItemError()
 
     def to_list(self):
         """Converts the stream to a python list.  Returns a list."""
@@ -97,7 +89,7 @@ class LazyStream(object):
                 result.append(self._calc_item(index))
             except NoStreamItemError:
                 break
-        return LazyStream(result)
+        return _LazyListStream(result)
 
     def first_or_else(self, or_else=None):
         """
@@ -123,8 +115,14 @@ class LazyStream(object):
         """
         Executes [func] on each item in the stream.  Doesn't return anything.
         """
-        for item in self._lst:
-            func(item)
+        index = 0
+        while True:
+            try:
+                item = self._calc_item(index)
+                func(item)
+                index += 1
+            except NoStreamItemError:
+                break
 
     def flatten(self):
         """
@@ -148,7 +146,7 @@ class LazyStream(object):
         LazyStream.  This method forces processing of every item in the steam.
         """
         sorted_lst = sorted(self.to_list(), key=key, reverse=reverse)
-        return LazyStream(sorted_lst)
+        return _LazyListStream(sorted_lst)
 
     def map(self, func):
         """
@@ -172,25 +170,44 @@ class LazyStream(object):
         return _LazyReverseStream(self)
 
 
+class _LazyListStream(LazyStream):
+    """A stream based off an actual list"""
+    def __init__(self, lst):
+        LazyStream.__init__(self)
+        if not isinstance(lst, (list, tuple)):
+            raise ValueError('Argument must be a list or tuple')
+        self._lst = lst
+
+    def _calc_item(self, index):
+        if index < 0:
+            raise NoStreamItemError()
+        try:
+            return self._lst[index]
+        except IndexError:
+            raise NoStreamItemError()
+
+    def size(self):
+        return len(self._lst)
+
+
 class _LazyMapStream(LazyStream):
     """The Map implementation of a LazyStream"""
-    def __init__(self, func, parent): # pylint: disable=super-init-not-called
+    def __init__(self, func, parent):
+        LazyStream.__init__(self)
         self._func = func
         self._parent = parent
-        self._cache = {}
 
     def size(self):
         return self._parent.size()
 
     def _calc_item(self, index):
-        if index not in self._cache.keys():
-            self._cache[index] = self._func(self._parent._calc_item(index)) # pylint: disable=protected-access
-        return self._cache[index]
+        return self._func(self._parent._calc_item(index)) # pylint: disable=protected-access
 
 
 class _LazyFilterStream(LazyStream):
     """The Filter implementation of a LazyStream"""
-    def __init__(self, func, parent): # pylint: disable=super-init-not-called
+    def __init__(self, func, parent):
+        LazyStream.__init__(self)
         self._func = func
         self._parent = parent
         self._cache = {}
@@ -227,19 +244,21 @@ class _LazyFilterStream(LazyStream):
 
 class _LazyReverseStream(LazyStream):
     """The Reverse implemenation of a LazyStream"""
-    def __init__(self, parent): # pylint: disable=super-init-not-called
+    def __init__(self, parent):
+        LazyStream.__init__(self)
         self._parent = parent
 
     def size(self):
         return self._parent.size()
 
     def _calc_item(self, index):
-        return self._parent._calc_item(self._parent.size() - index - 1) # pylint: disable=protected-access
+        return self._parent._calc_item(self.size() - index - 1) # pylint: disable=protected-access
 
 
 class _LazyFlattenStream(LazyStream):
     """The Flatten implementation of a LazyStream"""
-    def __init__(self, parent): # pylint: disable=super-init-not-called
+    def __init__(self, parent):
+        LazyStream.__init__(self)
         self._parent = parent
         self._size = -1
         self._flattened_lst = None
@@ -277,4 +296,4 @@ def stream(lst):
     """
     if isinstance(lst, xrange): # xranges don't really work yet.
         lst = list(lst)
-    return LazyStream(lst)
+    return _LazyListStream(lst)
