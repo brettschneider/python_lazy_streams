@@ -170,7 +170,6 @@ not perform any sorting.  It simply mirrors the values.
     >>>
 
 
-There is one special-purpose method
 Copyright (c) 2017, Steve Brettschneider.
 
 License: MIT (see LICENSE for details)
