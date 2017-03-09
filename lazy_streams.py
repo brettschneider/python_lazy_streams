@@ -216,15 +216,9 @@ class _LazyFilterStream(LazyStream):
         self._size = -1 # not calculated yet
 
     def size(self):
-        if self._size > -1:
-            return self._size
-        self._size = 0
-        while True:
-            try:
-                self._calc_item(self._size)
-                self._size += 1
-            except NoStreamItemError:
-                return self._size
+        if self._size == -1:
+            self._size = len(self.to_list())
+        return self._size
 
     def _calc_item(self, index):
         if index in self._cache.keys():
