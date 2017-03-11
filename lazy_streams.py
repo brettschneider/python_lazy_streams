@@ -27,9 +27,6 @@ __version__ = '0.1'
 __license__ = 'MIT'
 
 
-from promise_keeper import PromiseKeeper
-
-
 class NoStreamItemError(LookupError):
     """Indicates that the requested item does not exist."""
 
