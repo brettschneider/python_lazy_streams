@@ -27,10 +27,6 @@ __version__ = '0.1'
 __license__ = 'MIT'
 
 
-class NoStreamItemError(LookupError):
-    """Indicates that the requested item does not exist."""
-
-
 class LazyStream(object):
     """A lazy evaluated stream"""
 
@@ -39,19 +35,20 @@ class LazyStream(object):
         return 0
 
     def _materialize_item(self, index): # pylint: disable=unused-argument,no-self-use
-        raise NoStreamItemError()
+        return _MaterializationResult(_MaterializationResult.NO_ITEM)
 
     def to_list(self):
         """Converts the stream to a python list.  Returns a list."""
-        result = []
+        results = []
         index = 0
         while True:
-            try:
-                result.append(self._materialize_item(index))
-                index += 1
-            except NoStreamItemError:
+            result = self._materialize_item(index)
+            if result.status() == _MaterializationResult.ITEM:
+                results.append(result.item())
+            elif result.status() == _MaterializationResult.NO_ITEM:
                 break
-        return result
+            index += 1
+        return results
 
     def to_string(self, seperator=', '):
         """Converts the stream to a string.  Returns a str."""
@@ -83,33 +80,45 @@ class LazyStream(object):
         """
         Returns a new LazyStream containing only the first [num_items] items.
         """
-        result = []
-        for index in range(num_items):
-            try:
-                result.append(self._materialize_item(index))
-            except NoStreamItemError:
+        results = []
+        index = 0
+        while len(results) < num_items:
+            result = self._materialize_item(index)
+            if result.status() == _MaterializationResult.ITEM:
+                results.append(result.item())
+            elif result.status() == _MaterializationResult.NO_ITEM:
                 break
-        return _LazyListStream(result)
+            index += 1
+        return _LazyListStream(results)
 
     def first_or_else(self, or_else=None):
         """
         Returns the first item in the stream or, if the stream is empty,
         returns [or_else].
         """
-        try:
-            return self._materialize_item(0)
-        except NoStreamItemError:
-            return or_else
+        index = 0
+        while True:
+            result = self._materialize_item(index)
+            if result.status() == _MaterializationResult.ITEM:
+                return result.item()
+            elif result.status() ==_MaterializationResult.NO_ITEM:
+                return or_else
+            index += 1
 
     def last_or_else(self, or_else=None):
         """
         Returns the last item in the stream or, if the stream is empty,
         returns [or_else].
         """
-        try:
-            return self.reverse()._materialize_item(0) # pylint: disable=protected-access
-        except NoStreamItemError:
-            return or_else
+        index = 0
+        reverse = self.reverse()
+        while True:
+            result = reverse._materialize_item(index)
+            if result.status() == _MaterializationResult.ITEM:
+                return result.item()
+            elif result.status() ==_MaterializationResult.NO_ITEM:
+                return or_else
+            index += 1
 
     def for_each(self, func):
         """
@@ -117,12 +126,12 @@ class LazyStream(object):
         """
         index = 0
         while True:
-            try:
-                item = self._materialize_item(index)
-                func(item)
-                index += 1
-            except NoStreamItemError:
+            result = self._materialize_item(index)
+            if result.status() == _MaterializationResult.ITEM:
+                func(result.item())
+            elif result.status() == _MaterializationResult.NO_ITEM:
                 break
+            index += 1
 
     def flatten(self):
         """
@@ -180,11 +189,12 @@ class _LazyListStream(LazyStream):
 
     def _materialize_item(self, index):
         if index < 0:
-            raise NoStreamItemError()
+            return _MaterializationResult(_MaterializationResult.NO_ITEM)
         try:
-            return self._lst[index]
+            return _MaterializationResult(_MaterializationResult.ITEM, \
+                self._lst[index])
         except IndexError:
-            raise NoStreamItemError()
+            return _MaterializationResult(_MaterializationResult.NO_ITEM)
 
     def size(self):
         return len(self._lst)
@@ -201,7 +211,12 @@ class _LazyMapStream(LazyStream):
         return self._parent.size()
 
     def _materialize_item(self, index):
-        return self._func(self._parent._materialize_item(index)) # pylint: disable=protected-access
+        result = self._parent._materialize_item(index)
+        if result.status() == _MaterializationResult.ITEM:
+            return _MaterializationResult(_MaterializationResult.ITEM, \
+                self._func(result.item()))
+        else:
+            return result
 
 
 class _LazyFilterStream(LazyStream):
@@ -210,9 +225,6 @@ class _LazyFilterStream(LazyStream):
         LazyStream.__init__(self)
         self._func = func
         self._parent = parent
-        self._cache = {}
-        self._parent_index = 0
-        self._filter_index = 0
         self._size = -1 # not calculated yet
 
     def size(self):
@@ -221,19 +233,15 @@ class _LazyFilterStream(LazyStream):
         return self._size
 
     def _materialize_item(self, index):
-        if index in self._cache.keys():
-            return self._cache[index]
-        while self._parent_index < self._parent.size():
-            item = self._parent._materialize_item(self._parent_index) # pylint: disable=protected-access
-            self._parent_index += 1
-            if self._func(item):
-                self._filter_index = index
-                self._cache[self._filter_index] = item
-                if self._filter_index == index:
-                    return item
-                else:
-                    self._filter_index += 1
-        raise NoStreamItemError()
+        result = self._parent._materialize_item(index)
+        if result.status() == _MaterializationResult.ITEM:
+            included = self._func(result.item())
+            if included:
+                return result
+            else:
+                return _MaterializationResult(_MaterializationResult.FILTERED_OUT)
+        else:
+            return result
 
 
 class _LazyReverseStream(LazyStream):
@@ -263,9 +271,10 @@ class _LazyFlattenStream(LazyStream):
 
     def _materialize_item(self, index):
         try:
-            return self._calc_flattened_list()[index]
+            return _MaterializationResult(_MaterializationResult.ITEM, \
+                self._calc_flattened_list()[index])
         except IndexError:
-            raise NoStreamItemError()
+            return _MaterializationResult(_MaterializationResult.NO_ITEM)
 
     def _calc_flattened_list(self):
         if self._flattened_lst is None:
@@ -281,6 +290,25 @@ def _list_flattener(lst):
                 yield j
         else:
             yield i
+
+
+class _MaterializationResult(object):
+    """Describes what happened when an item was materialized"""
+    ITEM = 0
+    FILTERED_OUT = 1
+    NO_ITEM = 2
+
+    def __init__(self, status, item=None):
+        self._status = status
+        self._item = item
+
+    def status(self):
+        """Returns the status"""
+        return self._status
+
+    def item(self):
+        """Returns the materialized value"""
+        return self._item
 
 
 def stream(lst):
