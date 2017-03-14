@@ -101,7 +101,7 @@ class LazyStream(object):
             result = self._materialize_item(index)
             if result.status() == _MaterializationResult.ITEM:
                 return result.item()
-            elif result.status() ==_MaterializationResult.NO_ITEM:
+            elif result.status() == _MaterializationResult.NO_ITEM:
                 return or_else
             index += 1
 
@@ -113,10 +113,10 @@ class LazyStream(object):
         index = 0
         reverse = self.reverse()
         while True:
-            result = reverse._materialize_item(index)
+            result = reverse._materialize_item(index) # pylint: disable=protected-access
             if result.status() == _MaterializationResult.ITEM:
                 return result.item()
-            elif result.status() ==_MaterializationResult.NO_ITEM:
+            elif result.status() == _MaterializationResult.NO_ITEM:
                 return or_else
             index += 1
 
@@ -211,7 +211,7 @@ class _LazyMapStream(LazyStream):
         return self._parent.size()
 
     def _materialize_item(self, index):
-        result = self._parent._materialize_item(index)
+        result = self._parent._materialize_item(index) # pylint: disable=protected-access
         if result.status() == _MaterializationResult.ITEM:
             return _MaterializationResult(_MaterializationResult.ITEM, \
                 self._func(result.item()))
@@ -233,7 +233,7 @@ class _LazyFilterStream(LazyStream):
         return self._size
 
     def _materialize_item(self, index):
-        result = self._parent._materialize_item(index)
+        result = self._parent._materialize_item(index) # pylint: disable=protected-access
         if result.status() == _MaterializationResult.ITEM:
             included = self._func(result.item())
             if included:
