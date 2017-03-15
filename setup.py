@@ -13,4 +13,5 @@ setup(
     download_url = 'https://github.com/brettschneider/python_lazy_streams/archive/0.2.tar.gz',
     keywords = ['lazy', 'stream', 'list', 'processing', 'java'],
     classifiers = [],
+    install_requires=['promise-keeper']
 )
