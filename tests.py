@@ -3,6 +3,8 @@
 from unittest import TestCase
 from lazy_streams import stream
 from time import sleep
+from datetime import datetime
+from random import random
 
 class TestBase(TestCase):
 
@@ -252,3 +254,42 @@ class TestChaining(TestCase):
 
         # then
         self.assertEqual(result, "0, 0, 2, 2, 4, 4")
+
+
+class TestParallel(TestCase):
+
+    def test_speed(self):
+        def slow_is_even(x):
+            sleep(0.01 + random()*0.1)
+            return x%2 == 0
+        def slow_negative(x):
+            sleep(0.01 + random()*0.1)
+            return -x
+        def time_it(func, threads):
+            start = datetime.now()
+            result = func(threads)
+            return datetime.now() - start, result
+
+        s = stream(range(10)).filter(slow_is_even).map(slow_negative)
+        results_serial = time_it(s.to_list, 0)
+        results_parallel = time_it(s.to_list, 5)
+        self.assertEqual(results_serial[1], results_parallel[1])
+        self.assertGreater(results_serial[0], results_parallel[0])
+
+    def test_size(self):
+        def slow_is_even(x):
+            sleep(0.01 + random()*0.1)
+            return x%2 == 0
+        def slow_negative(x):
+            sleep(0.01 + random()*0.1)
+            return -x
+        def time_it(func, threads):
+            start = datetime.now()
+            result = func(threads)
+            return datetime.now() - start, result
+
+        s = stream(range(10)).filter(slow_is_even).map(slow_negative)
+        results_serial = time_it(s.size, 0)
+        results_parallel = time_it(s.size, 5)
+        self.assertEqual(results_serial[1], results_parallel[1])
+        self.assertGreater(results_serial[0], results_parallel[0])

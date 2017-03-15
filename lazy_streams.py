@@ -27,18 +27,36 @@ __version__ = '0.1'
 __license__ = 'MIT'
 
 
+from promise_keeper import PromiseKeeper
+
+
 class LazyStream(object):
     """A lazy evaluated stream"""
 
-    def size(self): # pylint: disable=no-self-use
+    def size(self, threads=0): # pylint: disable=no-self-use, unused-argument
         """The resulting number of items in the stream.  Returns an int."""
         return 0
 
     def _materialize_item(self, index): # pylint: disable=unused-argument,no-self-use
         return _MaterializationResult(_MaterializationResult.NO_ITEM)
 
-    def to_list(self):
-        """Converts the stream to a python list.  Returns a list."""
+    def to_list(self, threads=0):
+        """
+        Converts the stream to a python list.  If threads is greater than 0,
+        this method will use a PromiseKeeper to parallelize the work.  If
+        threads is 0, it will just do the work serialy on the main thread.
+        Beware, threading is computationally expensive.  It should really
+        only be used here if the filter and/or map functions in the pipeline
+        are time-bound (like making a web service call for example).
+
+        Returns a list.
+        """
+        if threads > 0:
+            return self._to_list_parallel(threads)
+        else:
+            return self._to_list_serial()
+
+    def _to_list_serial(self):
         results = []
         index = 0
         while True:
@@ -50,17 +68,48 @@ class LazyStream(object):
             index += 1
         return results
 
-    def to_string(self, seperator=', '):
-        """Converts the stream to a string.  Returns a str."""
-        return seperator.join([str(i) for i in self.to_list()])
+    def _to_list_parallel(self, thread_count):
 
-    def reduce(self, func):
+        def promises_contains_no_item(promises):
+            """Checks to see if the promises have any NO_ITEM statuses"""
+            for i in range(len(promises)-1, -1, -1):
+                result = promises[i].get_result()
+                if result is None:
+                    continue
+                if result.status() == _MaterializationResult.NO_ITEM:
+                    return True
+            return False
+
+        promises = []
+        index = 0
+        p_keeper = PromiseKeeper(thread_count, auto_stop=False)
+        while True:
+            promises.append(p_keeper.submit(self._materialize_item, (index,)))
+            if promises_contains_no_item(promises):
+                break
+            index += 1
+        p_keeper.stop()
+        return_val = []
+        for promise in promises:
+            result = promise.get_result()
+            if result != None and result.status() not in [ \
+                _MaterializationResult.NO_ITEM, \
+                _MaterializationResult.FILTERED_OUT \
+            ]:
+                return_val.append(result.item())
+        return return_val
+
+    def to_string(self, seperator=', ', threads=0):
+        """Converts the stream to a string.  Returns a str."""
+        return seperator.join([str(i) for i in self.to_list(threads)])
+
+    def reduce(self, func, threads=0):
         """
         Calls python's reduce function using the given [func] and the items
         from the stream.  Returns a single value whose type matches that of
         [func]'s output.
         """
-        return reduce(func, self.to_list())
+        return reduce(func, self.to_list(threads))
 
     def max(self, key=None):
         """
@@ -149,12 +198,12 @@ class LazyStream(object):
         """
         return _LazyFlattenStream(self)
 
-    def sort(self, key=None, reverse=False):
+    def sort(self, key=None, reverse=False, threads=0):
         """
         Sorts the steam given an optional [key] function.  Returns a new
         LazyStream.  This method forces processing of every item in the steam.
         """
-        sorted_lst = sorted(self.to_list(), key=key, reverse=reverse)
+        sorted_lst = sorted(self.to_list(threads), key=key, reverse=reverse)
         return _LazyListStream(sorted_lst)
 
     def map(self, func):
@@ -196,7 +245,7 @@ class _LazyListStream(LazyStream):
         except IndexError:
             return _MaterializationResult(_MaterializationResult.NO_ITEM)
 
-    def size(self):
+    def size(self, threads=0):
         return len(self._lst)
 
 
@@ -207,8 +256,8 @@ class _LazyMapStream(LazyStream):
         self._func = func
         self._parent = parent
 
-    def size(self):
-        return self._parent.size()
+    def size(self, threads=0):
+        return self._parent.size(threads)
 
     def _materialize_item(self, index):
         result = self._parent._materialize_item(index) # pylint: disable=protected-access
@@ -227,9 +276,9 @@ class _LazyFilterStream(LazyStream):
         self._parent = parent
         self._size = -1 # not calculated yet
 
-    def size(self):
+    def size(self, threads=0):
         if self._size == -1:
-            self._size = len(self.to_list())
+            self._size = len(self.to_list(threads))
         return self._size
 
     def _materialize_item(self, index):
@@ -250,8 +299,8 @@ class _LazyReverseStream(LazyStream):
         LazyStream.__init__(self)
         self._parent = parent
 
-    def size(self):
-        return self._parent.size()
+    def size(self, threads=0):
+        return self._parent.size(threads)
 
     def _materialize_item(self, index):
         return self._parent._materialize_item(self.size() - index - 1) # pylint: disable=protected-access
@@ -266,8 +315,8 @@ class _LazyFlattenStream(LazyStream):
         self._flattened_lst = None
         self._cache = []
 
-    def size(self):
-        return len(self._calc_flattened_list())
+    def size(self, threads=0):
+        return len(self._calc_flattened_list(threads))
 
     def _materialize_item(self, index):
         try:
@@ -276,9 +325,10 @@ class _LazyFlattenStream(LazyStream):
         except IndexError:
             return _MaterializationResult(_MaterializationResult.NO_ITEM)
 
-    def _calc_flattened_list(self):
+    def _calc_flattened_list(self, threads=0):
         if self._flattened_lst is None:
-            self._flattened_lst = list(_list_flattener(self._parent.to_list()))
+            self._flattened_lst = \
+                list(_list_flattener(self._parent.to_list(threads)))
         return self._flattened_lst
 
 
