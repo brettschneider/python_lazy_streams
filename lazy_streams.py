@@ -44,7 +44,7 @@ class LazyStream(object):
         """
         Converts the stream to a python list.  If threads is greater than 0,
         this method will use a PromiseKeeper to parallelize the work.  If
-        threads is 0, it will just do the work serialy on the main thread.
+        threads is 0, it will just do the work serially on the main thread.
         Beware, threading is computationally expensive.  It should really
         only be used here if the filter and/or map functions in the pipeline
         are time-bound (like making a web service call for example).
@@ -78,6 +78,8 @@ class LazyStream(object):
                     continue
                 if result.status() == _MaterializationResult.NO_ITEM:
                     return True
+                if result.status() == _MaterializationResult.ITEM:
+                    return False
             return False
 
         promises = []
