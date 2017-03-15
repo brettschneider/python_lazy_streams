@@ -99,9 +99,9 @@ class LazyStream(object):
                 return_val.append(result.item())
         return return_val
 
-    def to_string(self, seperator=', ', threads=0):
+    def to_string(self, separator=', ', threads=0):
         """Converts the stream to a string.  Returns a str."""
-        return seperator.join([str(i) for i in self.to_list(threads)])
+        return separator.join([str(i) for i in self.to_list(threads)])
 
     def reduce(self, func, threads=0):
         """
@@ -111,19 +111,19 @@ class LazyStream(object):
         """
         return reduce(func, self.to_list(threads))
 
-    def max(self, key=None):
+    def max(self, key=None, threads=0):
         """
         Returns the maximum value in the stream.  Returns a single item from
         the stream.  This method forces processing of every item in the stream.
         """
-        return self.sort(key=key).last_or_else()
+        return self.sort(key=key, threads=threads).last_or_else()
 
-    def min(self, key=None):
+    def min(self, key=None, threads=0):
         """
         Returns the minimum value in the stream.  Returns a single item from
         the stream.  This method forces processing of every item in the stream.
         """
-        return self.sort(key=key).first_or_else()
+        return self.sort(key=key, threads=threads).first_or_else()
 
     def take(self, num_items):
         """
