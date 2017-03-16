@@ -2,7 +2,7 @@ Python lazy_streams
 ====================
 
 Inspired by Java 8's streams, this Python module provides a fluent syntax for
-manipulating and querying Python lists.  It's called **lazy**_streams because
+manipulating and querying Python lists.  It's called lazy_streams because
 it lazy-evaluates the requests to increase performance and decrease resource
 requirements.
 
