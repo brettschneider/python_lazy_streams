@@ -33,6 +33,9 @@ from promise_keeper import PromiseKeeper
 class LazyStream(object):
     """A lazy evaluated stream"""
 
+    def __init__(self):
+        self._original_size = 0
+
     def size(self, threads=0): # pylint: disable=no-self-use, unused-argument
         """The resulting number of items in the stream.  Returns an int."""
         return 0
@@ -237,6 +240,7 @@ class _LazyListStream(LazyStream):
         if not isinstance(lst, (list, tuple)):
             raise ValueError('Argument must be a list or tuple')
         self._lst = lst
+        self._original_size = len(lst)
 
     def _materialize_item(self, index):
         if index < 0:
@@ -257,6 +261,7 @@ class _LazyMapStream(LazyStream):
         LazyStream.__init__(self)
         self._func = func
         self._parent = parent
+        self._original_size = parent._original_size
 
     def size(self, threads=0):
         return self._parent.size(threads)
@@ -277,6 +282,7 @@ class _LazyFilterStream(LazyStream):
         self._func = func
         self._parent = parent
         self._size = -1 # not calculated yet
+        self._original_size = parent._original_size
 
     def size(self, threads=0):
         if self._size == -1:
@@ -300,12 +306,13 @@ class _LazyReverseStream(LazyStream):
     def __init__(self, parent):
         LazyStream.__init__(self)
         self._parent = parent
+        self._original_size = parent._original_size
 
     def size(self, threads=0):
         return self._parent.size(threads)
 
     def _materialize_item(self, index):
-        return self._parent._materialize_item(self.size() - index - 1) # pylint: disable=protected-access
+        return self._parent._materialize_item(self._original_size - index - 1) # pylint: disable=protected-access
 
 
 class _LazyFlattenStream(LazyStream):
@@ -316,6 +323,7 @@ class _LazyFlattenStream(LazyStream):
         self._size = -1
         self._flattened_lst = None
         self._cache = []
+        self._original_size = parent._original_size
 
     def size(self, threads=0):
         return len(self._calc_flattened_list(threads))

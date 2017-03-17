@@ -145,6 +145,16 @@ class TestReverse(TestCase):
         # then
         self.assertEqual(result, [4, 3, 2, 1, 0])
 
+    def test_filter_chain_to_list(self):
+        # given
+        sut = stream(range(10))
+
+        # when
+        result = sut.filter(lambda x: x%2 == 0).reverse().to_list()
+
+        # then
+        self.assertEqual(result, [8, 6, 4, 2, 0])
+
 
 class TestMap(TestCase):
 
