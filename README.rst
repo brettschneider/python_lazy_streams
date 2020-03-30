@@ -18,12 +18,12 @@ Here's a quick example:
     ...    .map(lambda x: -x) \
     ...    .map(lambda x: "Item: %s" % x) \
     ...    .take(75) \
-    ...    .reverse() 
-    >>> print s.first_or_else()
+    ...    .reverse()
+    >>> print(s.first_or_else())
     Item: -363
-    >>> print s.take(5).to_list()
+    >>> print(s.take(5).to_list())
     ['Item: -363', 'Item: -362', 'Item: -361', 'Item: -360', 'Item: -359']
-    >>> print s.take(3).to_string()
+    >>> print(s.take(3).to_string())
     Item: -363, Item: -362, Item: -361
 
 
