@@ -1,3 +1,5 @@
 #!/bin/bash
 clear
-nosetests -v --with-coverage && coverage html
+mypy --ignore-missing .
+coverage run -m pytest tests.py
+coverage html
