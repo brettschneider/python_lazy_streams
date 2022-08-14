@@ -23,8 +23,6 @@ License: MIT (see LICENSE for details)
 """
 
 __author__ = "Steve Brettschneider"
-__version__ = "0.5"
-__license__ = "MIT"
 
 from typing import Iterator, Optional, Callable, List, Any, Union, Tuple
 from enum import IntEnum
