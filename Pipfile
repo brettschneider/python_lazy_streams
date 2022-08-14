@@ -8,6 +8,7 @@ pytest = "*"
 pytest-coverage = "*"
 promise-keeper = "*"
 twine = "*"
+certifi = "*"
 
 [dev-packages]
 
