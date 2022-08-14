@@ -6,8 +6,8 @@ name = "pypi"
 [packages]
 pytest = "*"
 pytest-coverage = "*"
-promise-keeper = "*"
 twine = "*"
+promise-keeper = "*"
 
 [dev-packages]
 
