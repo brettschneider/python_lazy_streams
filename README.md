@@ -186,7 +186,3 @@ not perform any sorting.  It simply mirrors the values.
     ['Jane', 'Mike', 'Sally', 'Joe', 'Gus']
     >>>
 
-
-Copyright (c) 2020, Steve Brettschneider.
-
-License: MIT (see LICENSE for details)
