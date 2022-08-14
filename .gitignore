@@ -13,3 +13,5 @@ lazy_streams.egg-info
 .mypy_cache
 .pytest_cache
 .python-version
+test_results.xml
+coverage.xml
