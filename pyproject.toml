@@ -14,7 +14,7 @@ readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.8"
 dependencies = [
-  "promise-keeper ~= 1.0.0"
+  "promise-keeper ~=1.0"
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
