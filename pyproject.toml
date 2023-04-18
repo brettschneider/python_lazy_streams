@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lazy_streams"
-version = "1.0.1"
+version = "1.0.2"
 authors = [
     { name = "Steve Brettschneider", email = "steve@bluehousefamily.com" },
     { name = "Rémi Desgrange", email = "remi.desgrange@camptocamp.com" }
