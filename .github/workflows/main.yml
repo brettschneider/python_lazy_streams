@@ -52,7 +52,7 @@ jobs:
           git pull --rebase
       - name: Bump dev branch to next version
         id: version
-        uses: vemel/nextversion@main
+        uses: vemel/nextversion@0.1.1
         with:
           path: ./pyproject.toml
           type: pep440
